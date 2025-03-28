@@ -106,7 +106,6 @@ csstyle::save_a4(
 )
 
 tab <- r[year==2024,.(
-  age_pretty,
   deaths_n,
   baseline_p50,
   baseline_ci = paste0(baseline_p025, " to ",baseline_p975),
