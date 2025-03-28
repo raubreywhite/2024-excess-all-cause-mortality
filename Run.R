@@ -103,12 +103,12 @@ raw <- p$run_all()
 r <- rbindlist(raw)
 
 r[, age_pretty := fcase(
-  age_cat=="000_000", "0 years old",
-  age_cat=="001_019", "1-19 years old",
-  age_cat=="020_039", "20-39 years old",
-  age_cat=="040_064", "40-64 years old",
-  age_cat=="065_079", "65-79 years old",
-  age_cat=="080p", "80+ years old"
+  age_cat=="000_000", "0 år",
+  age_cat=="001_019", "1-19 år",
+  age_cat=="020_039", "20-39 år",
+  age_cat=="040_064", "40-64 år",
+  age_cat=="065_079", "65-79 år",
+  age_cat=="080p", "80+ år"
 )]
 
 q <- ggplot(r[year<=2024], aes(x = year))
@@ -121,6 +121,40 @@ q <- q + scale_y_continuous("Deaths per 100 000 population")
 q <- q + scale_x_continuous(NULL, breaks = seq(2010, 2024, 2), minor_breaks = NULL)
 q <- q + csstyle::set_x_axis_vertical()
 print(q)
+
+q <- r %>%
+  dplyr::mutate(label = dplyr::case_when(
+    year < 2020 ~ "Dødsfall før 2020",
+    deaths_n > baseline_p975 & year >= 2020 ~ "Dødsfall etter 2020 som er høyere enn forventet",
+    deaths_n <= baseline_p975 & year >= 2020 ~ "Dødsfall etter 2020 som ikke er høyere enn forventet"
+  )) %>%
+  dplyr::filter(year <= 2024) %>%
+  ggplot(aes(x = year)) +
+  geom_ribbon(aes(ymin = 100000 * baseline_p025 / pop_jan1_n,
+                  ymax = 100000 * baseline_p975 / pop_jan1_n),
+              alpha = 0.5, fill = "lightgrey") +
+  geom_line(aes(y = 100000 * baseline_p50 / pop_jan1_n), color = "darkgrey", linewidth = 1) +
+  geom_point(aes(y = 100000 * deaths_n / pop_jan1_n, fill = label),
+             size = 4, shape = 21, color = "black", alpha = 0.9) +
+  geom_vline(xintercept = 2019.5, lty = 2, color = "red", linewidth = 1) +
+  facet_wrap(~ age_pretty, scales = "free") +
+  scale_y_continuous("Dødsfall per 100 000 innbyggere") +
+  scale_x_continuous(NULL, breaks = seq(2010, 2024, 1), minor_breaks = NULL) +
+  scale_fill_manual(NULL, values = c(
+    "Dødsfall før 2020" = "#374E55FF", 
+    "Dødsfall etter 2020 som ikke er høyere enn forventet" = "#79AF97FF",
+    "Dødsfall etter 2020 som er høyere enn forventet" = "#B24745FF"
+    ),
+    guide = guide_legend(reverse = TRUE)) +
+  ggthemes::theme_clean() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold"))
+q
+csstyle::save_a4(
+  q,
+  "figure_1.png"
+)
 
 tab <- r[year==2024,.(
   age_pretty,
